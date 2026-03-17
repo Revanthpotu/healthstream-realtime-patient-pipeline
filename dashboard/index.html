@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HealthStream v2 — Real-Time Patient Data Pipeline</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+
+:root {
+  --bg: #F5F8FC;
+  --surface: #FFFFFF;
+  --surface2: #EDF2F9;
+  --surface3: #E1E9F2;
+  --border: #D6E1ED;
+  --border2: #C4D1DF;
+  --text: #1E293B;
+  --text2: #475569;
+  --text3: #94A3B8;
+  --accent: #0D47A1;
+  --accent-glow: rgba(13,71,161,.08);
+  --blue: #1565C0;
+  --blue-dim: rgba(21,101,192,.08);
+  --purple: #b392f0;
+  --purple-dim: rgba(179,146,240,.12);
+  --red: #DC2626;
+  --red-dim: rgba(220,38,38,.06);
+  --orange: #D97706;
+  --orange-dim: rgba(217,119,6,.06);
+  --green: #16A34A;
+  --green-dim: rgba(22,163,74,.06);
+  --mono: 'JetBrains Mono', monospace;
+  --sans: 'Outfit', system-ui, -apple-system, sans-serif;
+  --radius: 14px;
+  --radius-sm: 10px;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  line-height: 1.55;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+::-webkit-scrollbar { width: 5px }
+::-webkit-scrollbar-track { background: transparent }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px }
+
+/* ── Animations ──────────────────────────────────────────────────────── */
+@keyframes fadeUp { from { opacity:0; transform:translateY(18px) } to { opacity:1; transform:translateY(0) } }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+@keyframes slideIn { from { opacity:0; transform:translateX(16px) } to { opacity:1; transform:translateX(0) } }
+@keyframes modalIn { from { opacity:0; transform:scale(.96) translateY(8px) } to { opacity:1; transform:scale(1) translateY(0) } }
+@keyframes shimmer { 0%{background-position:-200px 0} 100%{background-position:200px 0} }
+.fade-up { animation: fadeUp .45s ease both }
+.d1{animation-delay:.04s}.d2{animation-delay:.08s}.d3{animation-delay:.12s}.d4{animation-delay:.16s}.d5{animation-delay:.2s}
+
+/* ── Layout ──────────────────────────────────────────────────────────── */
+.container { max-width: 1400px; margin: 0 auto; padding: 0 32px 64px }
+
+/* ── Header ──────────────────────────────────────────────────────────── */
+.header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 20px 0; border-bottom: 1px solid var(--border); margin-bottom: 26px;
+}
+.logo-area { display: flex; align-items: center; gap: 14px }
+.logo-mark {
+  width: 46px; height: 46px; border-radius: 13px; display: flex;
+  align-items: center; justify-content: center;
+  background: linear-gradient(135deg, #0D47A1, #1565C0);
+  box-shadow: 0 4px 24px rgba(0,229,176,.28);
+  font-size: 22px; flex-shrink: 0;
+}
+.logo-text { font-size: 22px; font-weight: 700; letter-spacing: -.4px }
+.logo-text span { color: var(--accent) }
+.logo-sub { font-size: 10.5px; color: var(--text3); letter-spacing: 1.8px; text-transform: uppercase; margin-top: 1px }
+.hdr-right { display: flex; align-items: center; gap: 18px }
+.sys-badge {
+  display: inline-flex; align-items: center; gap: 7px; padding: 5px 15px;
+  border-radius: 22px; font-size: 11px; font-weight: 600; letter-spacing: .5px; text-transform: uppercase;
+}
+.sys-badge.healthy { background: var(--green-dim); color: var(--green); border: 1px solid rgba(0,229,176,.18) }
+.sys-badge.degraded { background: var(--orange-dim); color: var(--orange); border: 1px solid rgba(240,136,62,.18) }
+.sys-badge.unknown { background: var(--surface2); color: var(--text3); border: 1px solid var(--border) }
+.sys-badge .dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; animation: pulse 2s infinite }
+.clock { font-family: var(--mono); font-size: 13px; color: var(--text3); letter-spacing: .8px; min-width: 90px; text-align: right }
+
+/* ── Cards ────────────────────────────────────────────────────────────── */
+.card {
+  background: var(--surface); border-radius: var(--radius);
+  border: 1px solid var(--border); padding: 22px; position: relative; overflow: hidden;
+}
+.card::after {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--border2) 50%, transparent);
+}
+.card-title {
+  font-size: 11px; font-weight: 600; color: var(--text3); text-transform: uppercase;
+  letter-spacing: 1.3px; margin-bottom: 16px; display: flex; align-items: center; gap: 8px;
+}
+.card-title .ic { font-size: 15px; line-height: 1 }
+
+/* ── Stats ────────────────────────────────────────────────────────────── */
+.stats-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; margin-bottom: 18px }
+.stat-card { text-align: center; padding: 22px 14px 18px }
+.stat-label { font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: 1.2px; margin-bottom: 8px }
+.stat-val { font-family: var(--mono); font-size: 38px; font-weight: 700; line-height: 1 }
+.stat-sub { font-size: 11px; color: var(--text3); margin-top: 6px }
+
+/* ── Sources ──────────────────────────────────────────────────────────── */
+.src-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 14px }
+.src-card {
+  background: var(--surface2); border-radius: var(--radius-sm); padding: 20px;
+  border: 1px solid var(--border); transition: border-color .2s, transform .15s;
+}
+.src-card:hover { border-color: var(--border2); transform: translateY(-2px) }
+.src-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px }
+.src-name { display: flex; align-items: center; gap: 9px; font-weight: 600; font-size: 14px }
+.src-name .em { font-size: 20px }
+.src-method { font-size: 10.5px; color: var(--text3); font-style: italic; margin-bottom: 4px }
+.src-topic { font-family: var(--mono); font-size: 10.5px; color: var(--blue); margin-bottom: 14px }
+.src-foot { display: flex; justify-content: space-between; align-items: flex-end }
+.src-count { font-family: var(--mono); font-size: 26px; font-weight: 700 }
+.src-count-label { font-size: 9px; color: var(--text3); text-transform: uppercase; letter-spacing: .6px }
+
+/* ── Status dots + badges ────────────────────────────────────────────── */
+.dot-s { width: 9px; height: 9px; border-radius: 50%; display: inline-block; flex-shrink: 0 }
+.dot-s.healthy { background: var(--green); box-shadow: 0 0 10px var(--green) }
+.dot-s.stale { background: var(--orange); box-shadow: 0 0 10px var(--orange) }
+.dot-s.unknown { background: var(--text3); box-shadow: none }
+.dot-s.critical { background: var(--red); box-shadow: 0 0 10px var(--red) }
+.badge {
+  display: inline-block; padding: 3px 11px; border-radius: 20px;
+  font-size: 10px; font-weight: 600; letter-spacing: .4px; text-transform: uppercase;
+}
+.b-green { background: var(--green-dim); color: var(--green); border: 1px solid rgba(0,229,176,.14) }
+.b-orange { background: var(--orange-dim); color: var(--orange); border: 1px solid rgba(240,136,62,.14) }
+.b-red { background: var(--red-dim); color: var(--red); border: 1px solid rgba(248,81,73,.14) }
+.b-blue { background: var(--blue-dim); color: var(--blue); border: 1px solid rgba(88,166,255,.14) }
+.b-muted { background: var(--surface3); color: var(--text2); border: 1px solid var(--border) }
+
+/* ── Architecture ────────────────────────────────────────────────────── */
+.arch-flow {
+  display: flex; align-items: center; justify-content: center;
+  gap: 6px; padding: 20px 10px; flex-wrap: wrap;
+}
+.arch-node {
+  padding: 14px 18px; border-radius: var(--radius-sm); text-align: center;
+  background: var(--surface2); border: 1px solid var(--border); min-width: 90px;
+  transition: transform .15s;
+}
+.arch-node:hover { transform: translateY(-2px) }
+.arch-lbl { font-size: 11px; font-weight: 600; margin-top: 3px }
+.arch-sub { font-size: 9px; color: var(--text3) }
+.arch-arrow { color: var(--accent); font-size: 20px; font-weight: 700; flex-shrink: 0; opacity: .7 }
+.arch-kafka {
+  background: linear-gradient(135deg, var(--accent-glow), var(--blue-dim));
+  border-color: rgba(0,229,176,.2); padding: 14px 24px;
+}
+.arch-kafka .arch-lbl { color: var(--accent); font-size: 13px; font-weight: 700 }
+
+/* ── Main 2-column ───────────────────────────────────────────────────── */
+.main-grid { display: grid; grid-template-columns: 2.3fr 1fr; gap: 16px; margin-top: 16px }
+
+/* ── Patient Table ───────────────────────────────────────────────────── */
+.tbl-wrap { max-height: 520px; overflow-y: auto }
+table { width: 100%; border-collapse: collapse }
+thead th {
+  text-align: left; padding: 10px 14px; font-size: 10px; color: var(--text3);
+  text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; background: var(--surface); z-index: 3;
+}
+tbody td { padding: 12px 14px; font-size: 12.5px; border-bottom: 1px solid rgba(24,35,51,.6) }
+.p-row { cursor: pointer; transition: background .12s }
+.p-row:hover { background: var(--surface2) }
+.pid { font-family: var(--mono); color: var(--accent); font-size: 11.5px; font-weight: 500 }
+
+/* ── Vital Pills ─────────────────────────────────────────────────────── */
+.v-pills { display: flex; gap: 5px; flex-wrap: wrap }
+.v-pill {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 8px; border-radius: 6px; font-size: 10.5px;
+  background: var(--surface2); border: 1px solid var(--border);
+  font-family: var(--mono); white-space: nowrap;
+}
+.v-pill .vn { color: var(--text3); font-size: 9px; text-transform: uppercase; font-family: var(--sans); font-weight: 600 }
+.v-pill .vv { color: var(--text); font-weight: 600 }
+.v-pill .arr { font-weight: 800; font-size: 11px; line-height: 1 }
+.arr.up { color: var(--red) }
+.arr.down { color: var(--orange) }
+.arr.flat { color: var(--text3) }
+
+/* ── Alerts ───────────────────────────────────────────────────────────── */
+.alerts-scroll { max-height: 520px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px }
+.alert-item { padding: 14px 16px; border-radius: var(--radius-sm); animation: slideIn .3s ease both }
+.alert-item.critical { background: var(--red-dim); border: 1px solid rgba(248,81,73,.1) }
+.alert-item.warning { background: var(--orange-dim); border: 1px solid rgba(240,136,62,.1) }
+.al-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px }
+.al-pid { font-family: var(--mono); font-size: 11.5px; color: var(--accent); font-weight: 500 }
+.al-meta { font-size: 11px; color: var(--text2); margin-left: 8px }
+.al-reason { font-size: 12.5px; color: var(--text); margin-top: 5px; line-height: 1.5 }
+.al-conditions { font-size: 10px; color: var(--text3); margin-top: 8px }
+.empty-state { text-align: center; padding: 70px 20px; color: var(--text3); font-size: 14px }
+.empty-state .big { font-size: 32px; margin-bottom: 10px }
+
+/* ── Modal ────────────────────────────────────────────────────────────── */
+.modal-bg {
+  position: fixed; inset: 0; background: rgba(241,245,249,.88); backdrop-filter: blur(6px);
+  display: none; align-items: center; justify-content: center; z-index: 1000;
+}
+.modal-bg.open { display: flex }
+.modal-box {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 18px;
+  width: 700px; max-height: 85vh; overflow-y: auto; padding: 34px;
+  animation: modalIn .25s ease;
+  box-shadow: 0 24px 80px rgba(0,0,0,.12);
+}
+.m-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px }
+.m-title { font-size: 20px; font-weight: 700 }
+.m-pid { font-family: var(--mono); font-size: 12px; color: var(--accent); margin-top: 5px; word-break: break-all }
+.m-close {
+  background: var(--surface2); border: 1px solid var(--border); color: var(--text2);
+  border-radius: var(--radius-sm); padding: 8px 16px; cursor: pointer; font-size: 13px;
+  font-family: var(--sans); transition: all .15s;
+}
+.m-close:hover { background: var(--surface3); color: var(--text) }
+.m-section { margin-bottom: 26px }
+.m-sec-title { font-size: 11px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: 1.2px; margin-bottom: 14px }
+.vitals-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px }
+.vcard {
+  padding: 18px; border-radius: var(--radius-sm); background: var(--surface2);
+  border: 1px solid var(--border); text-align: center; transition: border-color .15s;
+}
+.vcard:hover { border-color: var(--border2) }
+.vcard-name { font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: .6px; margin-bottom: 8px }
+.vcard-val { font-family: var(--mono); font-size: 30px; font-weight: 700; color: var(--text) }
+.vcard-unit { font-size: 10px; color: var(--text3); margin-top: 2px }
+.vcard-trend { font-size: 11px; margin-top: 8px }
+.tags { display: flex; flex-wrap: wrap; gap: 7px }
+
+/* ── Chat ─────────────────────────────────────────────────────────────── */
+.chat-card { margin-top: 16px }
+.chat-suggestions { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px }
+.chat-sug {
+  background: var(--surface2); border: 1px solid var(--border); color: var(--text2);
+  border-radius: 22px; padding: 8px 16px; cursor: pointer; font-size: 12px;
+  font-family: var(--sans); transition: all .15s;
+}
+.chat-sug:hover { border-color: var(--accent); color: var(--accent) }
+.chat-msgs { max-height: 380px; overflow-y: auto; margin-bottom: 14px }
+.chat-msg { padding: 16px; margin-bottom: 10px; border-radius: var(--radius-sm) }
+.chat-msg.user { background: var(--accent-glow); border: 1px solid rgba(0,229,176,.14) }
+.chat-msg.bot { background: var(--surface2); border: 1px solid var(--border) }
+.chat-role { font-size: 10px; text-transform: uppercase; letter-spacing: .6px; margin-bottom: 7px; font-weight: 600 }
+.chat-msg.user .chat-role { color: var(--accent) }
+.chat-msg.bot .chat-role { color: var(--text3) }
+.chat-body { font-size: 13.5px; line-height: 1.75; color: var(--text); white-space: pre-wrap }
+.chat-body strong { color: var(--accent); font-weight: 600 }
+.chat-body code { background: var(--surface3); padding: 1px 6px; border-radius: 4px; font-family: var(--mono); font-size: 12px }
+.chat-input-row { display: flex; gap: 10px }
+.chat-input {
+  flex: 1; padding: 13px 20px; border-radius: var(--radius-sm); font-size: 13.5px;
+  background: var(--surface2); border: 1px solid var(--border); color: var(--text);
+  outline: none; font-family: var(--sans); transition: border-color .15s;
+}
+.chat-input:focus { border-color: var(--accent) }
+.chat-input::placeholder { color: var(--text3) }
+.chat-send {
+  padding: 13px 28px; border-radius: var(--radius-sm); font-size: 13.5px; font-weight: 600;
+  background: linear-gradient(135deg, #0D47A1, #1565C0);
+  border: none; color: #FFFFFF; cursor: pointer; font-family: var(--sans);
+  transition: opacity .15s, transform .1s;
+}
+.chat-send:hover { opacity: .9; transform: translateY(-1px) }
+.chat-send:disabled { opacity: .35; cursor: wait; transform: none }
+.typing-ind { color: var(--text3); font-size: 12.5px; padding: 12px 16px; animation: pulse 1.5s infinite }
+
+/* ── Footer ───────────────────────────────────────────────────────────── */
+.footer { margin-top: 40px; text-align: center; padding: 20px; color: var(--text3); font-size: 11px; letter-spacing: .5px }
+
+/* ── Responsive ──────────────────────────────────────────────────────── */
+@media (max-width: 1100px) {
+  .stats-row { grid-template-columns: repeat(2,1fr) }
+  .src-grid { grid-template-columns: 1fr }
+  .main-grid { grid-template-columns: 1fr }
+  .vitals-grid { grid-template-columns: repeat(2,1fr) }
+  .arch-flow { gap: 4px }
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <!-- ═══ HEADER ════════════════════════════════════════════════════════ -->
+  <header class="header fade-up">
+    <div class="logo-area">
+      <div class="logo-mark">⚕</div>
+      <div>
+        <div class="logo-text">HealthStream <span>v2</span></div>
+        <div class="logo-sub">Real-Time Patient Data Integration Pipeline</div>
+      </div>
+    </div>
+    <div class="hdr-right">
+      <div class="sys-badge unknown" id="sysBadge"><span class="dot"></span> Connecting</div>
+      <div class="clock" id="clock"></div>
+    </div>
+  </header>
+
+  <!-- ═══ STATS ROW ════════════════════════════════════════════════════ -->
+  <div class="stats-row">
+    <div class="card fade-up d1">
+      <div class="stat-label">Patients Tracked</div>
+      <div class="stat-val" id="sPatients" style="color:var(--accent)">—</div>
+      <div class="stat-sub">materialized in Redis</div>
+    </div>
+    <div class="card fade-up d2">
+      <div class="stat-label">Vitals Processed</div>
+      <div class="stat-val" id="sVitals" style="color:var(--blue)">—</div>
+      <div class="stat-sub">Source A · CSV Lab Export</div>
+    </div>
+    <div class="card fade-up d3">
+      <div class="stat-label">Conditions Synced</div>
+      <div class="stat-val" id="sConditions" style="color:var(--purple)">—</div>
+      <div class="stat-sub">Source B · PostgreSQL EHR</div>
+    </div>
+    <div class="card fade-up d4">
+      <div class="stat-label">Active Alerts</div>
+      <div class="stat-val" id="sAlerts" style="color:var(--green)">0</div>
+      <div class="stat-sub">patients flagged for attention</div>
+    </div>
+  </div>
+
+  <!-- ═══ DATA SOURCES ═════════════════════════════════════════════════ -->
+  <div class="card fade-up d3" style="margin-bottom:14px">
+    <div class="card-title"><span class="ic">📡</span> Data Integration Sources — 3 Methods</div>
+    <div class="src-grid" id="srcGrid">
+      <div class="src-card"><div style="padding:30px;text-align:center;color:var(--text3)">Loading...</div></div>
+      <div class="src-card"><div style="padding:30px;text-align:center;color:var(--text3)">Loading...</div></div>
+      <div class="src-card"><div style="padding:30px;text-align:center;color:var(--text3)">Loading...</div></div>
+    </div>
+  </div>
+
+<!-- ARCHITECTURE -->
+<div class="card fade-up d4">
+  <div class="card-title"><span class="ic" style="font-family:var(--mono)">///</span> Pipeline Architecture</div>
+  <div class="arch-flow">
+    <div class="arch-node"><div class="arch-lbl" style="color:var(--accent)">Lab Systems</div><div class="arch-sub">CSV - Python Producer</div></div>
+    <div class="arch-node"><div class="arch-lbl" style="color:var(--blue)">EHR Systems</div><div class="arch-sub">PostgreSQL - JDBC Connector</div></div>
+    <div class="arch-node"><div class="arch-lbl" style="color:var(--purple)">Pharmacy</div><div class="arch-sub">MySQL - Debezium CDC</div></div>
+    <div class="arch-arrow">&rarr;</div>
+    <div class="arch-node arch-kafka"><div class="arch-lbl">Apache Kafka</div><div class="arch-sub">3 Brokers - Schema Registry - Avro</div></div>
+    <div class="arch-arrow">&rarr;</div>
+    <div class="arch-node"><div class="arch-lbl" style="color:var(--orange)">ksqlDB</div><div class="arch-sub">Stream Processing</div></div>
+    <div class="arch-arrow">&rarr;</div>
+    <div class="arch-node"><div class="arch-lbl" style="color:var(--red)">Redis</div><div class="arch-sub">Context Engine - TTL 24h</div></div>
+    <div class="arch-arrow">&rarr;</div>
+    <div class="arch-node" style="background:linear-gradient(135deg,var(--accent-glow),var(--surface2));border-color:rgba(0,229,176,.2)">
+      <div class="arch-lbl" style="color:var(--accent)">3 AI Agents</div><div class="arch-sub">GPT-4o - 18 Tools</div>
+    </div>
+  </div>
+</div>
+
+
+<!-- AI AGENTS -->
+<div class="card fade-up d4" style="margin-top:14px">
+  <div class="card-title"><span class="ic" style="font-family:var(--mono)">&gt;_</span> AI Agents — 3 Agents - 18 Tools</div>
+  <div class="src-grid">
+    <div class="src-card" style="border-left:3px solid var(--accent)">
+      <div class="src-head">
+        <div class="src-name">Patient Context Agent</div>
+        <span class="badge b-green">Active</span>
+      </div>
+      <div class="src-method">For Doctors — Clinical queries in natural language</div>
+      <div style="font-size:11.5px;color:var(--text2);margin-top:10px;line-height:1.6">
+        6 tools: patient lookup, attention alerts, pipeline health, DLQ analysis, patient list, source impact
+      </div>
+      <div style="font-family:var(--mono);font-size:10px;color:var(--text3);margin-top:8px">python agent/agent.py</div>
+    </div>
+    <div class="src-card" style="border-left:3px solid var(--blue)">
+      <div class="src-head">
+        <div class="src-name">Integration Agent</div>
+        <span class="badge b-blue">Kafka-Level</span>
+      </div>
+      <div class="src-method">For Kafka Engineers — Automates source onboarding</div>
+      <div style="font-size:11.5px;color:var(--text2);margin-top:10px;line-height:1.6">
+        6 tools: recommend method, generate config, generate producer, deploy connector, check status, list connectors
+      </div>
+      <div style="font-family:var(--mono);font-size:10px;color:var(--text3);margin-top:8px">python agent/integration_agent.py</div>
+    </div>
+    <div class="src-card" style="border-left:3px solid var(--orange)">
+      <div class="src-head">
+        <div class="src-name">DLQ Monitor Agent</div>
+        <span class="badge b-orange">Kafka-Level</span>
+      </div>
+      <div class="src-method">For Kafka Engineers — Automated error analysis and alerting</div>
+      <div style="font-size:11.5px;color:var(--text2);margin-top:10px;line-height:1.6">
+        6 tools: scan DLQ, error patterns, root cause diagnosis, connector health, schema check, alert report
+      </div>
+      <div style="font-family:var(--mono);font-size:10px;color:var(--text3);margin-top:8px">python agent/dlq_monitor_agent.py</div>
+    </div>
+  </div>
+</div>
+  <!-- ═══ PATIENTS + ALERTS ════════════════════════════════════════════ -->
+  <div class="main-grid">
+    <div class="card fade-up d5">
+      <div class="card-title"><span class="ic">👥</span> Patient Registry <span id="ptCountLbl" style="color:var(--accent);margin-left:4px"></span></div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr>
+            <th>Patient ID</th><th>Age</th><th>Sex</th><th>Current Vitals</th><th>Cond.</th><th>Last Update</th>
+          </tr></thead>
+          <tbody id="ptBody"><tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text3)">Loading patient data...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card fade-up d5">
+      <div class="card-title"><span class="ic">⚡</span> Alerts <span id="alCountLbl" style="color:var(--red);margin-left:4px"></span></div>
+      <div class="alerts-scroll" id="alList">
+        <div class="empty-state">Loading alerts...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ AI CHAT ══════════════════════════════════════════════════════ -->
+  <div class="card chat-card fade-up d5">
+    <div class="card-title"><span class="ic">🤖</span> AI Agent — Natural Language Pipeline Queries</div>
+    <div class="chat-suggestions" id="chatSugs">
+      <button class="chat-sug" onclick="askQ('Which patients need immediate attention?')">Which patients need attention?</button>
+      <button class="chat-sug" onclick="askQ('What is the current pipeline health?')">Pipeline health status</button>
+      <button class="chat-sug" onclick="askQ('Analyze the dead letter queue for error patterns')">Analyze DLQ errors</button>
+      <button class="chat-sug" onclick="askQ('What would happen if the PostgreSQL source went down?')">Impact if PostgreSQL goes down</button>
+      <button class="chat-sug" onclick="askQ('Give me a summary of all patients and their conditions')">Patient summary</button>
+    </div>
+    <div class="chat-msgs" id="chatMsgs"></div>
+    <div class="chat-input-row">
+      <input class="chat-input" id="chatIn" placeholder="Ask about patients, vitals, pipeline health, data sources, DLQ errors..." onkeydown="if(event.key==='Enter')sendMsg()">
+      <button class="chat-send" id="chatBtn" onclick="sendMsg()">Send</button>
+    </div>
+  </div>
+
+  <div class="footer">
+    HealthStream v2 — Multi-Source Integration · Apache Kafka · ksqlDB · Redis · AI Agent
+  </div>
+</div>
+
+<!-- ═══ PATIENT DETAIL MODAL ════════════════════════════════════════════ -->
+<div class="modal-bg" id="modalBg" onclick="closeModal()">
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <div class="m-head">
+      <div>
+        <div class="m-title" id="mTitle">Patient Detail</div>
+        <div class="m-pid" id="mPid"></div>
+      </div>
+      <button class="m-close" onclick="closeModal()">✕ Close</button>
+    </div>
+    <div id="mDemo" style="margin-bottom:18px"></div>
+    <div class="m-section">
+      <div class="m-sec-title">Current Vitals</div>
+      <div class="vitals-grid" id="mVitals"></div>
+    </div>
+    <div class="m-section" id="mCondSec" style="display:none">
+      <div class="m-sec-title">Conditions / Diagnoses <span id="mCondCount" style="color:var(--accent)"></span></div>
+      <div class="tags" id="mConds"></div>
+    </div>
+    <div class="m-section" id="mMedSec" style="display:none">
+      <div class="m-sec-title">Medications <span id="mMedCount" style="color:var(--blue)"></span></div>
+      <div class="tags" id="mMeds"></div>
+    </div>
+    <div class="m-section" id="mHistSec" style="display:none">
+      <div class="m-sec-title">Vitals History (Last 10 Readings)</div>
+      <div id="mHist" style="font-family:var(--mono);font-size:11px;color:var(--text2)"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════════
+// HealthStream v2 Dashboard — Client Logic
+// ═══════════════════════════════════════════════════════════════════════
+
+const API = '/api';
+
+// ── Clock ──────────────────────────────────────────────────────────────
+function tickClock() {
+  document.getElementById('clock').textContent = new Date().toLocaleTimeString('en-US',{hour12:true,hour:'2-digit',minute:'2-digit',second:'2-digit'});
+}
+setInterval(tickClock, 1000); tickClock();
+
+// ── Helpers ────────────────────────────────────────────────────────────
+async function api(path) {
+  try { const r = await fetch(API + path); return await r.json(); }
+  catch(e) { console.warn('API error:', path, e); return null; }
+}
+function n(v) { return v != null ? Number(v).toLocaleString() : '—'; }
+function short(id) { return id ? id.substring(0,8) + '…' : '—'; }
+function esc(t) { return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+const VNAMES = {
+  heart_rate:'HR', systolic_bp:'SBP', diastolic_bp:'DBP',
+  oxygen_saturation:'SpO₂', temperature:'Temp', respiratory_rate:'RR', bmi:'BMI'
+};
+function vn(k) { return VNAMES[k] || k.replace(/_/g,' ').substring(0,8); }
+
+function trendArrow(dir) {
+  if (dir === 'rising') return '<span class="arr up">▲</span>';
+  if (dir === 'falling') return '<span class="arr down">▼</span>';
+  return '<span class="arr flat">→</span>';
+}
+
+function badgeClass(status) {
+  if (status === 'healthy' || status === 'RUNNING') return 'b-green';
+  if (status === 'stale' || status === 'warning') return 'b-orange';
+  if (status === 'critical' || status === 'FAILED') return 'b-red';
+  return 'b-muted';
+}
+
+// ── Load Health + Stats ────────────────────────────────────────────────
+async function loadHealth() {
+  const d = await api('/health');
+  if (!d) return;
+  const b = document.getElementById('sysBadge');
+  const st = d.status || 'unknown';
+  b.className = 'sys-badge ' + st;
+  b.innerHTML = '<span class="dot"></span> ' + st.charAt(0).toUpperCase() + st.slice(1);
+  document.getElementById('sPatients').textContent = n(d.patient_count);
+
+  const stats = d.stats || {};
+  document.getElementById('sVitals').textContent = n(stats.vitals_processed);
+  document.getElementById('sConditions').textContent = n(stats.conditions_processed);
+}
+
+// ── Load Pipeline Sources ──────────────────────────────────────────────
+async function loadPipeline() {
+  const d = await api('/pipeline');
+  if (!d) return;
+  const icons = { vitals:'[A]', conditions:'[B]', medications:'[C]' };
+  const grid = document.getElementById('srcGrid');
+  grid.innerHTML = (d.sources||[]).map(s => `
+    <div class="src-card">
+      <div class="src-head">
+        <div class="src-name"><span class="em">${icons[s.icon]||'[~]'}</span> ${esc(s.label)}</div>
+        <span class="dot-s ${s.status}"></span>
+      </div>
+      <div class="src-method">${esc(s.method)}</div>
+      <div class="src-topic">→ ${esc(s.topic)}</div>
+      <div class="src-foot">
+        <div>
+          <div class="src-count">${n(s.messages_processed)}</div>
+          <div class="src-count-label">messages processed</div>
+        </div>
+        <span class="badge ${badgeClass(s.status)}">${esc(s.status)}</span>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ── Load Patients ──────────────────────────────────────────────────────
+async function loadPatients() {
+  const d = await api('/patients');
+  if (!d) return;
+  document.getElementById('ptCountLbl').textContent = `(${d.total})`;
+  const body = document.getElementById('ptBody');
+
+  if (!d.patients || d.patients.length === 0) {
+    body.innerHTML = '<tr><td colspan="6" class="empty-state">No patients found in Redis yet.</td></tr>';
+    return;
+  }
+
+  body.innerHTML = d.patients.slice(0, 50).map(p => {
+    const pills = Object.entries(p.vitals || {}).map(([k, v]) =>
+      `<span class="v-pill"><span class="vn">${vn(k)}</span> <span class="vv">${v.value != null ? Number(v.value).toFixed(1) : '—'}</span> ${trendArrow(v.trend)}</span>`
+    ).join('');
+    const ts = p.last_updated ? new Date(p.last_updated).toLocaleTimeString() : '—';
+    return `<tr class="p-row" onclick="openPatient('${esc(p.patient_id)}')">
+      <td class="pid">${short(p.patient_id)}</td>
+      <td>${esc(p.age)}</td>
+      <td>${esc(p.gender)}</td>
+      <td><div class="v-pills">${pills}</div></td>
+      <td>${p.condition_count}</td>
+      <td style="font-family:var(--mono);font-size:11px;color:var(--text3)">${ts}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ── Load Alerts ────────────────────────────────────────────────────────
+async function loadAlerts() {
+  const d = await api('/alerts');
+  if (!d) return;
+  const total = d.total || 0;
+  const el = document.getElementById('sAlerts');
+  el.textContent = total;
+  el.style.color = total > 0 ? 'var(--red)' : 'var(--green)';
+  document.getElementById('alCountLbl').textContent = total > 0 ? `(${total})` : '';
+
+  const list = document.getElementById('alList');
+  if (!d.patients || d.patients.length === 0) {
+    list.innerHTML = '<div class="empty-state"><div class="big">OK</div>All patients stable — no alerts</div>';
+    return;
+  }
+
+  list.innerHTML = d.patients.slice(0, 25).map((p, i) => `
+    <div class="alert-item ${p.severity}" style="animation-delay:${i * 40}ms">
+      <div class="al-head">
+        <div>
+          <span class="al-pid">${short(p.patient_id)}</span>
+          <span class="al-meta">${esc(p.age)}y ${esc(p.gender)}</span>
+        </div>
+        <span class="badge ${p.severity === 'critical' ? 'b-red' : 'b-orange'}">${p.severity}</span>
+      </div>
+      ${p.reasons.map(r => `<div class="al-reason">${r.type === 'critical' ? '🔴' : '🟡'} ${esc(r.msg)}</div>`).join('')}
+      ${p.conditions.length ? `<div class="al-conditions">Conditions: ${p.conditions.slice(0,3).map(esc).join(', ')}</div>` : ''}
+    </div>
+  `).join('');
+}
+
+// ── Patient Modal ──────────────────────────────────────────────────────
+async function openPatient(pid) {
+  const d = await api('/patients/' + encodeURIComponent(pid));
+  if (!d || d.error) return;
+
+  document.getElementById('mPid').textContent = d.patient_id;
+  document.getElementById('mDemo').innerHTML =
+    `<span class="badge b-blue" style="margin-right:8px">Age: ${d.patient_age || '?'}</span>` +
+    `<span class="badge b-blue">Gender: ${d.patient_gender || '?'}</span>`;
+
+  // Vitals grid
+  const vg = document.getElementById('mVitals');
+  const vitals = d.vitals || {};
+  vg.innerHTML = Object.entries(vitals).map(([name, vd]) => {
+    const dir = vd.trend?.direction || 'stable';
+    const pct = vd.trend?.pct_change ? ` (${Math.abs(vd.trend.pct_change).toFixed(1)}%)` : '';
+    const tColor = dir === 'rising' ? 'var(--red)' : dir === 'falling' ? 'var(--orange)' : 'var(--text3)';
+    return `<div class="vcard">
+      <div class="vcard-name">${name.replace(/_/g, ' ')}</div>
+      <div class="vcard-val">${vd.value != null ? Number(vd.value).toFixed(1) : '—'}</div>
+      <div class="vcard-unit">${esc(vd.units || '')}</div>
+      <div class="vcard-trend" style="color:${tColor}">
+        ${trendArrow(dir)} ${dir}${pct}
+        ${vd.trend?.readings ? `<span style="color:var(--text3)"> · ${vd.trend.readings} readings</span>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+
+  // Conditions
+  const conds = d.conditions || [];
+  const cs = document.getElementById('mCondSec');
+  const ct = document.getElementById('mConds');
+  if (conds.length) {
+    cs.style.display = 'block';
+    document.getElementById('mCondCount').textContent = `(${conds.length})`;
+    ct.innerHTML = conds.map(c => {
+      const name = typeof c === 'string' ? c : c.name || JSON.stringify(c);
+      return `<span class="badge b-muted">${esc(name)}</span>`;
+    }).join('');
+  } else { cs.style.display = 'none'; }
+
+  // Medications
+  const meds = d.medications || [];
+  const ms = document.getElementById('mMedSec');
+  const mt = document.getElementById('mMeds');
+  if (meds.length) {
+    ms.style.display = 'block';
+    document.getElementById('mMedCount').textContent = `(${meds.length})`;
+    mt.innerHTML = meds.map(m => {
+      const name = typeof m === 'string' ? m : m.name || JSON.stringify(m);
+      return `<span class="badge b-blue">${esc(name)}</span>`;
+    }).join('');
+  } else { ms.style.display = 'none'; }
+
+  // Vitals history
+  const hist = d.vitals_history || {};
+  const hs = document.getElementById('mHistSec');
+  const hd = document.getElementById('mHist');
+  const histKeys = Object.keys(hist);
+  if (histKeys.length) {
+    hs.style.display = 'block';
+    hd.innerHTML = histKeys.map(k => {
+      const readings = hist[k];
+      const label = k.replace('_history', '').replace(/_/g, ' ');
+      const vals = readings.map(r => Number(r.value).toFixed(1)).join(' → ');
+      return `<div style="margin-bottom:6px"><span style="color:var(--accent)">${label}:</span> ${vals}</div>`;
+    }).join('');
+  } else { hs.style.display = 'none'; }
+
+  document.getElementById('modalBg').classList.add('open');
+}
+
+function closeModal() { document.getElementById('modalBg').classList.remove('open'); }
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+// ── AI Chat ────────────────────────────────────────────────────────────
+function askQ(text) {
+  document.getElementById('chatIn').value = text;
+  sendMsg();
+}
+
+async function sendMsg() {
+  const el = document.getElementById('chatIn');
+  const msg = el.value.trim();
+  if (!msg) return;
+  el.value = '';
+
+  document.getElementById('chatSugs').style.display = 'none';
+  const box = document.getElementById('chatMsgs');
+  box.innerHTML += `<div class="chat-msg user"><div class="chat-role">You</div><div class="chat-body">${esc(msg)}</div></div>`;
+  box.innerHTML += `<div class="typing-ind" id="typing">🤖 AI Agent is analyzing pipeline data...</div>`;
+  box.scrollTop = box.scrollHeight;
+
+  const btn = document.getElementById('chatBtn');
+  btn.disabled = true;
+
+  try {
+    const res = await fetch(API + '/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: msg }),
+    });
+    const data = await res.json();
+    const ti = document.getElementById('typing');
+    if (ti) ti.remove();
+    const reply = data.response || data.error || 'No response received';
+    box.innerHTML += `<div class="chat-msg bot" style="animation:slideIn .3s ease"><div class="chat-role">AI Agent</div><div class="chat-body">${fmtMd(reply)}</div></div>`;
+  } catch(e) {
+    const ti = document.getElementById('typing');
+    if (ti) ti.remove();
+    box.innerHTML += `<div class="chat-msg bot"><div class="chat-role">Error</div><div class="chat-body">Could not reach the Dashboard API. Make sure it's running on port 5050.</div></div>`;
+  }
+  btn.disabled = false;
+  box.scrollTop = box.scrollHeight;
+}
+
+function fmtMd(text) {
+  let t = esc(text);
+  t = t.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  t = t.replace(/`(.+?)`/g, '<code>$1</code>');
+  t = t.replace(/^### (.+)$/gm, '<div style="font-size:14px;font-weight:700;color:var(--accent);margin:14px 0 6px">$1</div>');
+  t = t.replace(/^## (.+)$/gm, '<div style="font-size:15px;font-weight:700;color:var(--accent);margin:16px 0 8px">$1</div>');
+  t = t.replace(/^- (.+)$/gm, '<div style="padding-left:18px;margin:3px 0;position:relative"><span style="position:absolute;left:4px;color:var(--accent)">•</span>$1</div>');
+  t = t.replace(/^\d+\. (.+)$/gm, (m) => `<div style="padding-left:18px;margin:3px 0">${m}</div>`);
+  return t;
+}
+
+// ── Refresh Loop ───────────────────────────────────────────────────────
+async function refreshAll() {
+  await Promise.all([loadHealth(), loadPipeline(), loadPatients(), loadAlerts()]);
+}
+refreshAll();
+setInterval(refreshAll, 10000);
+</script>
+</body>
+</html>
