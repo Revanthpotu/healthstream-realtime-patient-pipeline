@@ -1,5 +1,11 @@
 # 🏥 HealthStream — Real-Time Patient Data Integration Pipeline
 
+A production-grade real-time data integration platform demonstrating **3 integration methods**, **ksqlDB stream processing**, **AI-powered operational intelligence**, and **Kafka security** — all in the healthcare domain.
+
+Inspired by Confluent's **Real-Time Context Engine** pattern.A production-grade real-time data integration platform demonstrating **3 integration methods**, **ksqlDB stream processing**, **AI-powered operational intelligence**, and **Kafka security** — all in the healthcare domain.
+
+Inspired by Confluent's **Real-Time Context Engine** pattern.
+
 > 3 data sources → Apache Kafka → ksqlDB → Redis → 3 AI Agents (GPT-4o) → Doctor Dashboard
 
 ![Architecture](architecture/HealthStream-Architecture.png)
